@@ -2,6 +2,7 @@ import math
 import numpy as np
 import scipy
 from scipy.optimize import least_squares
+from scipy.ndimage import rotate, shift
 
 def rotate_on_axial_plane(img_dcm: np.ndarray, angle_in_degrees: float) -> np.ndarray:
     """ Rotate the image on the axial plane. """
@@ -131,6 +132,33 @@ def coregister_landmarks(ref_landmarks: np.ndarray, inp_landmarks: np.ndarray):
         x0=initial_parameters,
         verbose=1)
     return result
+
+def rotate_all_axis(image, angles):
+    axes = [(1, 2), (0, 2), (0, 1)]
+    for angle, axis in zip(angles, axes):
+        image = rotate(image, angle, axes=axis, reshape=False)
+    return image
+
+def coregisteration(ref_image, inp_image):
+    centroid_ref = find_centroid(ref_image)
+    centroid_inp = find_centroid(inp_image)
+
+    translation_vector = centroid_inp - centroid_ref
+    initial_parameters = [translation_vector[0], translation_vector[1], translation_vector[2],
+                          0, 0, 0, # rotate
+                          1,1,1]   # zoom
+
+    def function_to_minimize(parameters):
+        print(parameters)
+        translated_img = shift(inp_image, parameters[:3])
+        rotated_img = rotate_all_axis(translated_img, parameters[3:6])
+        zoomed_img = scipy.ndimage.zoom(rotated_img, parameters[6:], order=1)
+        return np.mean(np.sqrt(((ref_image-zoomed_img))**2))
+
+    result = least_squares(function_to_minimize, x0=initial_parameters, verbose=1)
+
+    return result
+
 
 def normalize(input_array):
     amin = np.amin(input_array)
