@@ -3,6 +3,7 @@ import numpy as np
 import scipy
 from scipy.optimize import least_squares
 from scipy.ndimage import rotate, shift
+import matplotlib.pyplot as plt
 
 def rotate_on_axial_plane(img_dcm: np.ndarray, angle_in_degrees: float) -> np.ndarray:
     """ Rotate the image on the axial plane. """
@@ -192,3 +193,14 @@ def MIP_coronal_plane(img_dcm: np.ndarray) -> np.ndarray:
 def AIP_coronal_plane(img_dcm: np.ndarray) -> np.ndarray:
     """ Compute the average intensity projection on the coronal orientation. """
     return np.mean(img_dcm, axis=1)
+
+def blend_images(image, mask, alpha=0.3):
+    cmap = plt.cm.bone
+    norm = plt.Normalize(vmin=np.amin(image), vmax=np.amax(image))
+    colored_image = cmap(norm(image))[..., :3]
+
+    colored_mask = np.zeros_like(colored_image)
+    colored_mask[mask == 1] = [1, 0, 0]  # Red color for mask
+
+    blended = (1 - alpha) * colored_image + alpha * colored_mask
+    return blended
